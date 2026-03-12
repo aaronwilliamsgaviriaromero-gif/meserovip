@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#0a0b10">
+    <title>MeseroVIP | POS Nightclub</title>
+    <meta name="description" content="Sistema de gestión de discotecas. Fácil de usar, visualmente impactante.">
+    <link href="https://fonts.googleapis.com/css2?family=Spline+Sans:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
+    <link rel="stylesheet" href="styles/main.css">
+</head>
+
+<body class="theme-local">
+    <div id="bg-image-container" class="bg-image-container"></div>
+
+    <!-- LOGIN OVERLAY -->
+    <div id="login-overlay" class="login-overlay glass" style="display:flex;">
+        <div class="login-card">
+            <div class="logo-container" style="margin-bottom: 2rem;">
+                <h1 class="logo-text" style="font-size: 2.5rem;">MESERO<span>VIP</span></h1>
+                <p
+                    style="font-size:0.7rem;letter-spacing:4px;color:var(--text-dim);text-align:center;margin-top:-0.5rem;text-transform:uppercase;font-weight:500;">
+                    Acceso Autorizado</p>
+            </div>
+
+            <form id="login-form">
+                <div class="input-group">
+                    <span class="material-icons-outlined input-icon">email</span>
+                    <input type="email" id="login-email" placeholder="Correo Electrónico" required>
+                </div>
+                <div class="input-group">
+                    <span class="material-icons-outlined input-icon">lock</span>
+                    <input type="password" id="login-password" placeholder="Contraseña" required>
+                </div>
+                <div id="login-error" class="login-error"
+                    style="display:none; color: #f20d59; font-size: 0.8rem; margin-bottom: 1rem; text-align: center;">
+                    Error al iniciar sesión</div>
+                <button type="submit" class="btn-primary pulse" id="btn-login" style="margin-top: 1rem;">
+                    <span class="material-icons-outlined"
+                        style="font-size: 1.2rem; margin-right: 8px; vertical-align: bottom;">login</span>
+                    Iniciar Sesión
+                </button>
+            </form>
+
+            <div style="display: flex; align-items: center; justify-content: center; margin: 1.5rem 0;">
+                <div style="height: 1px; flex: 1; background: var(--border-glass);"></div>
+                <span
+                    style="padding: 0 10px; color: var(--text-dim); font-size: 0.8rem; text-transform: uppercase;">o</span>
+                <div style="height: 1px; flex: 1; background: var(--border-glass);"></div>
+            </div>
+
+            <button type="button" class="btn-primary" id="btn-google-login"
+                style="background: white; color: black; display: flex; align-items: center; justify-content: center; gap: 10px;">
+                <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" alt="Google"
+                    style="width: 18px; height: 18px;">
+                Continuar con Google
+            </button>
+
+            <p style="text-align:center; color:var(--text-dim); font-size:0.75rem; margin-top:2rem;">
+                Solicita acceso al administrador de cuenta.
+            </p>
+        </div>
+    </div>
+
+    <div id="app" class="app-container" style="display:none;">
+
+        <!-- DESKTOP: Sidebar Navigation -->
+        <aside class="sidebar glass">
+            <div class="logo-container">
+                <h1 class="logo-text">MESERO<span>VIP</span></h1>
+            </div>
+            <nav class="nav-menu">
+                <button class="nav-item active" data-view="tables" id="nav-tables">
+                    <span class="material-icons-outlined icon">table_restaurant</span>
+                    <span class="label">Mesas</span>
+                </button>
+                <button class="nav-item" data-view="pos" id="nav-pos">
+                    <span class="material-icons-outlined icon">receipt_long</span>
+                    <span class="label">Registro</span>
+                </button>
+                <button class="nav-item" data-view="dashboard" id="nav-dashboard">
+                    <span class="material-icons-outlined icon">assignment</span>
+                    <span class="label">Panel</span>
+                </button>
+                <button class="nav-item" data-view="inventory" id="nav-inventory">
+                    <span class="material-icons-outlined icon">settings</span>
+                    <span class="label">Ajustes</span>
+                </button>
+                <button class="nav-item" data-view="vouchers" id="nav-vouchers">
+                    <span class="material-icons-outlined icon">receipt</span>
+                    <span class="label">Bauches</span>
+                </button>
+            </nav>
+            <div class="sidebar-footer">
+                <div class="user-info" id="waiter-profile-trigger">
+                    <div class="user-avatar" id="waiter-avatar">JD</div>
+                    <div class="user-details">
+                        <p class="user-name" id="waiter-name">Juan Delgado</p>
+                        <p class="user-role">Mesero Senior</p>
+                    </div>
+                </div>
+                <button class="nav-item" id="btn-finish-shift"
+                    style="margin-top:10px;background:rgba(242,13,89,0.1);color:var(--accent);border:1px solid rgba(242,13,89,0.2);">
+                    <span class="material-icons-outlined icon">logout</span>
+                    <span class="label">Terminar Turno</span>
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="top-header glass">
+                <div class="view-title">
+                    <h2 id="current-view-name">Gestión de Mesas</h2>
+                    <p id="view-subtitle" class="subtitle">Main Floor</p>
+                </div>
+                <div class="header-actions">
+                    <div class="mode-toggle-container">
+                        <button id="btn-theme-color"
+                            style="background:transparent; border:none; color:var(--text-main); cursor:pointer; margin-right: 10px; display:flex; align-items:center;">
+                            <span class="material-icons-outlined" id="theme-color-icon">light_mode</span>
+                        </button>
+                        <span class="toggle-label">LOCAL</span>
+                        <label class="switch">
+                            <input type="checkbox" id="mode-toggle">
+                            <span class="slider round"></span>
+                        </label>
+                        <span class="toggle-label">TURISTA</span>
+                    </div>
+                    <div class="status-indicators">
+                        <div class="indicator online" title="Sincronizado"></div>
+                        <span class="time" id="clock">00:00</span>
+                    </div>
+                </div>
+            </header>
+
+            <section id="view-container" class="view-container"></section>
+        </main>
+
+        <!-- Order Sidebar (desktop right / mobile drawer) -->
+        <aside id="order-sidebar" class="order-sidebar glass">
+            <div class="order-header" style="display:flex;justify-content:space-between;align-items:center;">
+                <div>
+                    <h3>Pedido Actual</h3>
+                    <span class="table-tag" id="active-table-number">Mesa --</span>
+                </div>
+                <!-- Close button only visible on mobile -->
+                <button id="btn-close-cart" onclick="toggleCart()"
+                    style="display:none;background:rgba(255,255,255,0.1);border:none;color:white;width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:1rem;">✕</button>
+            </div>
+            <div class="order-items" id="order-items-list">
+                <div class="empty-cart-msg">No hay productos seleccionados</div>
+            </div>
+            <div class="order-footer">
+                <div class="order-summary-row"
+                    style="margin-bottom:0.8rem;padding-top:10px;border-top:1px solid var(--border-glass);">
+                    <label
+                        style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:0.85rem;color:var(--text-dim)">
+                        <input type="checkbox" id="toggle-service" checked style="accent-color:var(--primary)">
+                        Incluir Servicio (10%)
+                    </label>
+                </div>
+                <div class="order-summary-row">
+                    <span>Subtotal</span><span id="order-subtotal">$0</span>
+                </div>
+                <div class="order-summary-row">
+                    <span>Servicio</span><span id="order-service">$0</span>
+                </div>
+                <div class="order-summary-row total">
+                    <span>Total</span><span id="order-total">$0</span>
+                </div>
+                <button class="btn-primary pulse" id="btn-checkout">Completar Pedido</button>
+            </div>
+        </aside>
+
+        <!-- MOBILE: Bottom Navigation Bar -->
+        <nav class="bottom-nav" id="bottom-nav">
+            <button class="bottom-nav-item active" data-view="tables" id="bnav-tables">
+                <span class="material-icons-outlined">table_restaurant</span>
+                <span>Mesas</span>
+            </button>
+            <button class="bottom-nav-item" data-view="pos" id="bnav-pos">
+                <span class="material-icons-outlined">receipt_long</span>
+                <span>Menú</span>
+            </button>
+            <button class="bottom-nav-item bottom-nav-cart" id="bnav-cart" onclick="toggleCart()">
+                <span class="material-icons-outlined">shopping_bag</span>
+                <span id="cart-badge" class="cart-badge" style="display:none">0</span>
+                <span>Cuenta</span>
+            </button>
+            <button class="bottom-nav-item" data-view="dashboard" id="bnav-dashboard">
+                <span class="material-icons-outlined">bar_chart</span>
+                <span>Panel</span>
+            </button>
+            <button class="bottom-nav-item" data-view="inventory" id="bnav-inventory">
+                <span class="material-icons-outlined">settings</span>
+                <span>Ajustes</span>
+            </button>
+            <button class="bottom-nav-item" data-view="vouchers" id="bnav-vouchers">
+                <span class="material-icons-outlined">receipt</span>
+                <span>Bauches</span>
+            </button>
+            <button class="bottom-nav-item bottom-nav-shift" id="bnav-shift" onclick="finishShift()">
+                <span class="material-icons-outlined">logout</span>
+                <span>Turno</span>
+            </button>
+        </nav>
+
+    </div>
+
+    <!-- Firebase Scripts (v9 Compat) -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-auth-compat.js"></script>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    <script src="js/menuData.js"></script>
+    <script src="js/app.js"></script>
+</body>
+
+</html>
