@@ -499,61 +499,57 @@ function renderPOS() {
 
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             if (!SpeechRecognition) {
-                alert("Tu navegador no soporta el reconocimiento de voz. Usa Google Chrome.");
+                alert("Tu navegador no soporta el reconocimiento de voz. Usa Google Chrome para Android o Safari en iOs 14.5+.");
                 return;
             }
 
-            const recognition = new SpeechRecognition();
-            recognition.lang = 'es-ES';
-            recognition.interimResults = false;
-            recognition.maxAlternatives = 1;
+            try {
+                const recognition = new SpeechRecognition();
+                recognition.lang = 'es-ES';
+                recognition.interimResults = false;
+                recognition.maxAlternatives = 1;
 
-            recognition.onstart = () => {
-                btnVoice.style.background = 'var(--accent)';
-                btnVoice.classList.add('pulse');
-                if (inputIcon) inputIcon.style.color = 'var(--accent)';
-                voiceFeedback.value = 'Escuchando tu pedido...';
-            };
+                recognition.onstart = () => {
+                    btnVoice.style.background = 'var(--accent)';
+                    btnVoice.classList.add('pulse');
+                    if (inputIcon) inputIcon.style.color = 'var(--accent)';
+                    voiceFeedback.value = 'Escuchando tu pedido...';
+                };
 
-            recognition.onresult = (event) => {
-                const speechResult = event.results[0][0].transcript.toLowerCase();
-                voiceFeedback.value = speechResult;
-                processOrderText(speechResult);
-            };
-
-            recognition.onerror = (event) => {
-                voiceFeedback.value = 'No se pudo escuchar. Intenta otra vez.';
-                btnVoice.style.background = 'var(--primary)';
-                btnVoice.classList.remove('pulse');
-                if (inputIcon) inputIcon.style.color = 'var(--text-dim)';
-            };
-
-            recognition.onend = () => {
-                btnVoice.style.background = 'var(--primary)';
-                btnVoice.classList.remove('pulse');
-                if (inputIcon) inputIcon.style.color = 'var(--text-dim)';
-            };
-
-            // Solicitar permisos de micrófono explícitamente antes de iniciar
-            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                alert('El micrófono no está disponible. Si estás en celular u otro PC, necesitas que la página esté en (HTTPS). Intenta escribiendo en la lupa.');
-                return;
-            }
-
-            navigator.mediaDevices.getUserMedia({ audio: true })
-                .then(function (stream) {
-                    // Detener el stream extra creado solo para pedir permiso
-                    stream.getTracks().forEach(track => track.stop());
-
-                    try {
-                        recognition.start();
-                    } catch (e) {
-                        console.log('El reconocimiento ya estaba corriendo o error al iniciar', e);
+                recognition.onresult = (event) => {
+                    if (event.results && event.results[0] && event.results[0][0]) {
+                        const speechResult = event.results[0][0].transcript.toLowerCase();
+                        voiceFeedback.value = speechResult;
+                        processOrderText(speechResult);
+                    } else {
+                        voiceFeedback.value = 'No se entendió el audio.';
                     }
-                })
-                .catch(function (err) {
-                    alert('Acceso al micrófono DENEGADO. Por favor da permisos en la esquina de la barra de direcciones de tu navegador.');
-                });
+                };
+
+                recognition.onerror = (event) => {
+                    console.error('Error de voz:', event.error);
+                    if (event.error === 'not-allowed') {
+                        voiceFeedback.value = 'Acepta los permisos del micrófono.';
+                        alert('Por favor permite el uso del micrófono (icono en la barra superior o configuración de Chrome).');
+                    } else {
+                        voiceFeedback.value = 'No se escuchó. Intenta otra vez. Error: ' + event.error;
+                    }
+                    btnVoice.style.background = 'var(--primary)';
+                    btnVoice.classList.remove('pulse');
+                    if (inputIcon) inputIcon.style.color = 'var(--text-dim)';
+                };
+
+                recognition.onend = () => {
+                    btnVoice.style.background = 'var(--primary)';
+                    btnVoice.classList.remove('pulse');
+                    if (inputIcon) inputIcon.style.color = 'var(--text-dim)';
+                };
+
+                recognition.start();
+            } catch (e) {
+                console.error('Fallo al iniciar reconocimiento:', e);
+                voiceFeedback.value = 'Intenta presionar de nuevo.';
+            }
         });
     }
 }
