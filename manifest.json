@@ -1,0 +1,21 @@
+{
+  "name": "MeseroVIP",
+  "short_name": "MeseroVIP",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#0a0b10",
+  "theme_color": "#0a0b10",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/4/4e/Glass_of_champagne_emoji.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/4/4e/Glass_of_champagne_emoji.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
