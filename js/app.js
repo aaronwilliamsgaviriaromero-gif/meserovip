@@ -391,16 +391,33 @@ function renderPOS() {
     const currentModeItems = menuData[state.mode];
     const categoryList = ['Todos', ...new Set(currentModeItems.map(item => item.category))];
 
+    // Get recently added products (up to 5) from localStorage
+    const recentProductIds = JSON.parse(localStorage.getItem('meserovip_recent_products') || '[]');
+    const recentProducts = recentProductIds
+        .map(id => currentModeItems.find(p => p.id === id))
+        .filter(Boolean)
+        .slice(0, 5);
+
+    const recentOptionsHTML = recentProducts.map(p =>
+        `<option value="${p.name}">🕐 ${p.name} — $${(p.price/1000).toFixed(0)}K</option>`
+    ).join('');
+
     // Voice / Text Order Control
     const voiceCtrl = document.createElement('div');
     voiceCtrl.style.display = 'flex';
     voiceCtrl.style.justifyContent = 'space-between';
     voiceCtrl.style.alignItems = 'center';
     voiceCtrl.style.marginBottom = '1rem';
+    voiceCtrl.style.position = 'relative';
     voiceCtrl.innerHTML = `
-        <div style="flex:1; background:rgba(255,255,255,0.05); padding:10px; border-radius:10px; border:1px solid var(--border-glass); display:flex; align-items:center; gap:10px; margin-right:10px;">
+        <div style="flex:1; background:rgba(255,255,255,0.05); padding:10px; border-radius:10px; border:1px solid var(--border-glass); display:flex; align-items:center; gap:10px; margin-right:10px; position:relative;">
             <span class="material-icons-outlined" id="input-icon" style="color:var(--text-dim)">search</span>
-            <input type="text" id="voice-input-feedback" placeholder="Habla o escribe tu pedido y presiona Enter..." style="background:transparent; border:none; color:var(--text-main); width:100%; outline:none;">
+            <input type="text" id="voice-input-feedback" list="recent-products-list"
+                placeholder="Busca o habla tu pedido..." 
+                style="background:transparent; border:none; color:var(--text-main); width:100%; outline:none;">
+            <datalist id="recent-products-list">
+                ${recentOptionsHTML}
+            </datalist>
         </div>
         <button id="btn-start-voice" class="btn-primary" style="padding:10px; border-radius:50%; min-width:44px; width:44px; height:44px; display:flex; align-items:center; justify-content:center; cursor:pointer; z-index:10; border:none; outline:none;" title="Presiona para hablar">
             <span class="material-icons-outlined" style="pointer-events:none; font-size:1.5rem;">mic</span>
@@ -608,6 +625,12 @@ function renderPOS() {
 function addToCart(product, qty = 1) {
     if (!state.selectedTable) return alert('Selecciona una mesa primero');
 
+    // Track recently used products
+    const recentIds = JSON.parse(localStorage.getItem('meserovip_recent_products') || '[]');
+    const filtered = recentIds.filter(id => id !== product.id);
+    filtered.unshift(product.id);
+    localStorage.setItem('meserovip_recent_products', JSON.stringify(filtered.slice(0, 10)));
+
     // Buscar si el producto ya existe en el carrito
     const existingItem = state.cart.find(item => item.id === product.id);
 
@@ -679,24 +702,32 @@ function updateCartUI() {
             <div style="display: flex; gap: 14px; width: 100%; align-items: center; padding: 4px 0;">
                 <div style="position: relative;">
                     ${itemImageHTML}
-                    <span style="position: absolute; -top: 8px; -right: 8px; background: var(--accent); color: white; font-size: 0.65rem; font-weight: 800; padding: 2px 6px; border-radius: 10px; border: 2px solid var(--bg-dark);">${item.quantity}</span>
+                    <span style="position: absolute; top: -6px; right: -6px; background: var(--accent); color: white; font-size: 0.65rem; font-weight: 800; padding: 2px 6px; border-radius: 10px; border: 2px solid var(--bg-dark);">${item.quantity}</span>
                 </div>
                 <div style="flex:1; min-width:0;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 4px;">
-                        <span style="font-weight:700; font-size:1rem; color: var(--text-main); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${item.name}</span>
-                        <span style="font-weight:800; color: var(--primary); font-size: 0.95rem;">$${(item.price * item.quantity).toLocaleString()}</span>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 6px;">
+                        <span style="font-weight:700; font-size:0.95rem; color: var(--text-main); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; margin-right:8px;">${item.name}</span>
+                        <span style="font-weight:800; color: var(--primary); font-size: 0.9rem; white-space:nowrap;">= $${(item.price * item.quantity).toLocaleString()}</span>
                     </div>
-                    <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px;">
-                        <div style="display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.06); padding: 4px 10px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1);">
-                            <button onclick="updateQty('${item.cartId}', -1)" style="background: none; border: none; color: var(--text-dim); cursor: pointer; padding: 2px;"><span class="material-icons-outlined" style="font-size: 1.1rem;">remove</span></button>
-                            <span style="font-weight: 800; font-size: 0.9rem; min-width: 20px; text-align: center;">${item.quantity}</span>
-                            <button onclick="updateQty('${item.cartId}', 1)" style="background: none; border: none; color: var(--text-dim); cursor: pointer; padding: 2px;"><span class="material-icons-outlined" style="font-size: 1.1rem;">add</span></button>
+                    <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+                        <!-- Price editor -->
+                        <div style="display: flex; align-items: center; gap: 4px; background: rgba(255,255,255,0.06); padding: 4px 8px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.12); flex: 1;">
+                            <span style="font-size:0.75rem; color:var(--text-dim); white-space:nowrap;">$ unit</span>
+                            <input type="number" value="${item.price}" 
+                                onchange="updateItemPrice('${item.cartId}', this.value, true)"
+                                oninput="updateItemPrice('${item.cartId}', this.value, false)"
+                                style="width:100%; background:transparent; border:none; color:var(--primary); font-weight:700; font-size:0.95rem; outline:none; min-width:0; text-align:right;">
                         </div>
-                        <div style="display: flex; gap: 8px;">
-                            <button onclick="removeFromCart('${item.cartId}')" style="background: rgba(242, 13, 89, 0.1); border: none; color: var(--accent); cursor: pointer; border-radius: 10px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;">
-                                <span class="material-icons-outlined" style="font-size: 1.2rem;">delete_outline</span>
-                            </button>
+                        <!-- Qty controls -->
+                        <div style="display: flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.06); padding: 4px 8px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.1);">
+                            <button onclick="updateQty('${item.cartId}', -1)" style="background: none; border: none; color: var(--text-dim); cursor: pointer; padding: 0; display:flex;"><span class="material-icons-outlined" style="font-size: 1rem;">remove</span></button>
+                            <span style="font-weight: 800; font-size: 0.9rem; min-width: 18px; text-align: center;">${item.quantity}</span>
+                            <button onclick="updateQty('${item.cartId}', 1)" style="background: none; border: none; color: var(--text-dim); cursor: pointer; padding: 0; display:flex;"><span class="material-icons-outlined" style="font-size: 1rem;">add</span></button>
                         </div>
+                        <!-- Delete -->
+                        <button onclick="removeFromCart('${item.cartId}')" style="background: rgba(242, 13, 89, 0.1); border: none; color: var(--accent); cursor: pointer; border-radius: 10px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; flex-shrink:0;">
+                            <span class="material-icons-outlined" style="font-size: 1.1rem;">delete_outline</span>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -713,12 +744,26 @@ function updateCartUI() {
     updateCartBadge();
 }
 
-window.updateItemPrice = (cartId, newPrice) => {
+window.updateItemPrice = (cartId, newPrice, saveNow = false) => {
     const item = state.cart.find(i => i.cartId === cartId);
     if (item) {
-        item.price = parseInt(newPrice) || 0;
-        if (state.selectedTable) saveState();
-        updateCartUI();
+        const parsed = parseInt(newPrice);
+        if (isNaN(parsed) || parsed < 0) return; // Don't update for invalid values
+        item.price = parsed;
+        
+        // Update carts state
+        if (state.selectedTable) {
+            state.carts[state.selectedTable.id] = state.cart;
+        }
+        
+        // Only update totals display (not the full cart UI, which would lose focus)
+        updateCartTotalsOnly();
+        
+        // Save to storage and cloud when user finishes editing (onchange event)
+        if (saveNow) {
+            localStorage.setItem('meserovip_carts', JSON.stringify(state.carts));
+            if (window.syncToCloud) window.syncToCloud();
+        }
     }
 };
 
