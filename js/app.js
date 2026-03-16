@@ -603,14 +603,20 @@ function addToCart(product, qty = 1) {
         });
     }
 
-    // Save to specific table cart and mark as occupied
-    state.carts[state.selectedTable.id] = state.cart;
+    // Mark table as occupied
     const tableIndex = state.tables.findIndex(t => t.id === state.selectedTable.id);
     if (tableIndex !== -1) {
         state.tables[tableIndex].status = 'occupied';
     }
-    saveState();
-
+    
+    // Save everything
+    localStorage.setItem('meserovip_carts', JSON.stringify(state.carts));
+    localStorage.setItem('meserovip_tables', JSON.stringify(state.tables));
+    
+    if (window.syncToCloud) {
+        window.syncToCloud();
+    }
+    
     updateCartUI();
 }
 
@@ -622,7 +628,12 @@ function updateCartUI() {
         orderSubtotal.textContent = '$0';
         orderService.textContent = '$0';
         orderTotal.textContent = '$0';
-        updateCartBadge();
+        
+        // Update Mobile Summary
+        const cartBadge = document.getElementById('cart-badge');
+        if (cartBadge) {
+            cartBadge.style.display = 'none';
+        }
         return;
     }
 
@@ -642,27 +653,26 @@ function updateCartUI() {
         }
 
         itemEl.innerHTML = `
-            <div style="display: flex; gap: 10px; width: 100%;">
-                ${itemImageHTML}
+            <div style="display: flex; gap: 14px; width: 100%; align-items: center; padding: 4px 0;">
+                <div style="position: relative;">
+                    ${itemImageHTML}
+                    <span style="position: absolute; -top: 8px; -right: 8px; background: var(--accent); color: white; font-size: 0.65rem; font-weight: 800; padding: 2px 6px; border-radius: 10px; border: 2px solid var(--bg-dark);">${item.quantity}</span>
+                </div>
                 <div style="flex:1; min-width:0;">
-                    <div style="display:flex; justify-content:space-between; align-items:flex-start">
-                        <div style="min-width:0; flex:1;">
-                            <p style="font-weight:600; font-size:0.88rem; margin-bottom:1px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${item.name}</p>
-                            <p style="font-size:0.7rem; color:var(--text-dim)">${item.category || ''}</p>
-                        </div>
-                        <button onclick="removeFromCart('${item.cartId}')" style="background:rgba(242,13,89,0.1); border:none; color:var(--accent); width:26px; height:26px; border-radius:50%; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:0.75rem; flex-shrink:0; margin-left:5px;">✕</button>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 4px;">
+                        <span style="font-weight:700; font-size:1rem; color: var(--text-main); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${item.name}</span>
+                        <span style="font-weight:800; color: var(--primary); font-size: 0.95rem;">$${(item.price * item.quantity).toLocaleString()}</span>
                     </div>
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px; gap:8px">
-                        <div style="display:flex; align-items:center; gap:4px; background:rgba(255,255,255,0.03); padding:3px 6px; border-radius:8px; border:1px solid rgba(255,255,255,0.05); flex:1;">
-                            <span style="font-size:0.7rem; color:var(--text-dim)">$</span>
-                            <input type="number" value="${item.price}" 
-                                onchange="updateItemPrice('${item.cartId}', this.value)"
-                                style="width:100%; background:transparent; border:none; color:var(--text-main); font-weight:600; font-size:0.85rem; outline:none; min-width:0;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px;">
+                        <div style="display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.06); padding: 4px 10px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1);">
+                            <button onclick="updateQty('${item.cartId}', -1)" style="background: none; border: none; color: var(--text-dim); cursor: pointer; padding: 2px;"><span class="material-icons-outlined" style="font-size: 1.1rem;">remove</span></button>
+                            <span style="font-weight: 800; font-size: 0.9rem; min-width: 20px; text-align: center;">${item.quantity}</span>
+                            <button onclick="updateQty('${item.cartId}', 1)" style="background: none; border: none; color: var(--text-dim); cursor: pointer; padding: 2px;"><span class="material-icons-outlined" style="font-size: 1.1rem;">add</span></button>
                         </div>
-                        <div style="display:flex; align-items:center; gap:6px; flex-shrink:0;">
-                            <button onclick="updateQty('${item.cartId}', -1)" style="width:26px; height:26px; border-radius:7px; border:1px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.05); color:white; cursor:pointer;">-</button>
-                            <span style="font-weight:700; min-width:20px; text-align:center; font-size:0.95rem;">${item.quantity}</span>
-                            <button onclick="updateQty('${item.cartId}', 1)" style="width:26px; height:26px; border-radius:7px; border:1px solid rgba(255,255,255,0.1); background:rgba(255,255,255,0.05); color:white; cursor:pointer;">+</button>
+                        <div style="display: flex; gap: 8px;">
+                            <button onclick="removeFromCart('${item.cartId}')" style="background: rgba(242, 13, 89, 0.1); border: none; color: var(--accent); cursor: pointer; border-radius: 10px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;">
+                                <span class="material-icons-outlined" style="font-size: 1.2rem;">delete_outline</span>
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -717,6 +727,32 @@ function updateCartTotalsOnly() {
     if (orderSubtotal) orderSubtotal.textContent = `$${subtotal.toLocaleString()}`;
     if (orderService) orderService.textContent = `$${service.toLocaleString()}`;
     if (orderTotal) orderTotal.textContent = `$${total.toLocaleString()}`;
+    
+    // Update Mobile Nav Badge and Total
+    const cartBadge = document.getElementById('cart-badge');
+    const bnavCartText = document.querySelector('#bnav-cart span:last-child');
+    const totalQty = state.cart.reduce((acc, item) => acc + item.quantity, 0);
+
+    if (cartBadge) {
+        if (totalQty > 0) {
+            cartBadge.textContent = totalQty;
+            cartBadge.style.display = 'flex';
+        } else {
+            cartBadge.style.display = 'none';
+        }
+    }
+    
+    if (bnavCartText) {
+        if (total > 0) {
+            bnavCartText.textContent = `$${total.toLocaleString()}`;
+            bnavCartText.style.color = 'var(--primary)';
+            bnavCartText.style.fontWeight = '800';
+        } else {
+            bnavCartText.textContent = 'Cuenta';
+            bnavCartText.style.color = '';
+            bnavCartText.style.fontWeight = '';
+        }
+    }
 }
 
 window.removeFromCart = (cartId) => {
@@ -1492,6 +1528,11 @@ try {
                             if (data.carts) state.carts = data.carts;
                             if (data.pastOrders) state.pastOrders = data.pastOrders;
                             if (data.vouchers) state.vouchers = data.vouchers;
+
+                            // CRITICAL FIX: Update active cart if table matches
+                            if (state.selectedTable) {
+                                state.cart = state.carts[state.selectedTable.id] || [];
+                            }
 
                             localStorage.setItem('meserovip_tables', JSON.stringify(state.tables));
                             localStorage.setItem('meserovip_carts', JSON.stringify(state.carts));
