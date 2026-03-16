@@ -216,7 +216,7 @@ function setupEventListeners() {
     }
 }
 
-function finishShift() {
+async function finishShift() {
     // Check if there are occupied tables
     const occupiedTables = state.tables.filter(t => t.status !== 'available');
     if (occupiedTables.length > 0) {
@@ -244,7 +244,10 @@ function finishShift() {
     localStorage.setItem('meserovip_orders', JSON.stringify([]));
     localStorage.setItem('meserovip_vouchers', JSON.stringify([]));
     
-    if (window.syncToCloud) window.syncToCloud();
+    // Ensure it syncs to the cloud before disconnecting
+    if (window.syncToCloud) {
+        await window.syncToCloud();
+    }
 
     // Sign out from Firebase
     if (window.firebaseAuth) {
@@ -1368,7 +1371,7 @@ try {
 
     window.syncToCloud = () => {
         if (window.firebaseAuth && window.firebaseAuth.currentUser && window.db) {
-            window.db.collection('userdata').doc(window.firebaseAuth.currentUser.uid).set({
+            return window.db.collection('userdata').doc(window.firebaseAuth.currentUser.uid).set({
                 tables: state.tables,
                 carts: state.carts,
                 pastOrders: state.pastOrders,
@@ -1376,6 +1379,7 @@ try {
                 lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
             }, { merge: true }).catch(console.error);
         }
+        return Promise.resolve();
     };
 
     const loginOverlay = document.getElementById('login-overlay');
