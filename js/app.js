@@ -51,6 +51,7 @@ state.carts = JSON.parse(localStorage.getItem('meserovip_carts')) || {};
 function saveState() {
     localStorage.setItem('meserovip_tables', JSON.stringify(state.tables));
     localStorage.setItem('meserovip_carts', JSON.stringify(state.carts));
+    if (window.syncToCloud) window.syncToCloud();
 }
 
 // DOM Elements
@@ -219,17 +220,31 @@ function finishShift() {
     // Check if there are occupied tables
     const occupiedTables = state.tables.filter(t => t.status !== 'available');
     if (occupiedTables.length > 0) {
-        const confirmMsg = `Tienes ${occupiedTables.length} mesa(s) aún abiertas. ¿Estás seguro que deseas terminar el turno? Esto cerrará sesión pero no borrará las ventas.`;
+        const confirmMsg = `Tienes ${occupiedTables.length} mesa(s) aún abiertas. ¿Estás seguro que deseas terminar el turno? Esto cerrará sesión pero guardará las ventas de hoy y cerrará el turno.`;
         if (!confirm(confirmMsg)) return;
     } else {
-        if (!confirm('¿Estás seguro que deseas terminar tu turno?')) return;
+        if (!confirm('¿Estás seguro que deseas terminar tu turno? Se archivarán las ventas y bauches actuales y empezarás un turno nuevo la próxima vez.')) return;
     }
 
-    const todayYMD = getLocalYMD();
-    const todayOrders = state.pastOrders.filter(o => getLocalYMD(o.timestamp) === todayYMD);
+    const todayOrders = state.pastOrders;
     const todayTotal = todayOrders.reduce((acc, o) => acc + o.total, 0);
 
-    alert(`¡Turno terminado!\n\nMesero: ${state.waiterName}\nTotal de comandas hoy: ${todayOrders.length}\nVentas totales hoy: $${todayTotal.toLocaleString()}`);
+    alert(`¡Turno terminado!\n\nMesero: ${state.waiterName}\nTotal de comandas este turno: ${todayOrders.length}\nVentas totales este turno: $${todayTotal.toLocaleString()}`);
+
+    // Archive current shift data
+    const historyOrders = JSON.parse(localStorage.getItem('meserovip_orders_history')) || [];
+    const historyVouchers = JSON.parse(localStorage.getItem('meserovip_vouchers_history')) || [];
+    
+    localStorage.setItem('meserovip_orders_history', JSON.stringify([...historyOrders, ...state.pastOrders]));
+    localStorage.setItem('meserovip_vouchers_history', JSON.stringify([...historyVouchers, ...state.vouchers]));
+    
+    // Start fresh for new shift
+    state.pastOrders = [];
+    state.vouchers = [];
+    localStorage.setItem('meserovip_orders', JSON.stringify([]));
+    localStorage.setItem('meserovip_vouchers', JSON.stringify([]));
+    
+    if (window.syncToCloud) window.syncToCloud();
 
     // Sign out from Firebase
     if (window.firebaseAuth) {
@@ -723,6 +738,7 @@ function processPayment() {
 
     state.pastOrders.push(newOrder);
     localStorage.setItem('meserovip_orders', JSON.stringify(state.pastOrders));
+    if (window.syncToCloud) window.syncToCloud();
 
     // Desocupar la mesa y liberar carrito
     state.cart = [];
@@ -770,12 +786,17 @@ function renderDashboard() {
     // Chart data for last 7 days ending today
     const chartLabels = [];
     const chartData = [];
+    
+    // Combine current and archived for the chart
+    const archivedOrders = JSON.parse(localStorage.getItem('meserovip_orders_history')) || [];
+    const allOrdersChart = [...archivedOrders, ...state.pastOrders];
+
     for (let i = 6; i >= 0; i--) {
         const d = new Date();
         d.setDate(d.getDate() - i);
         const ymd = getLocalYMD(d);
         chartLabels.push(d.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric' }));
-        const daySales = state.pastOrders.filter(o => getLocalYMD(o.timestamp) === ymd).reduce((sum, o) => sum + o.total, 0);
+        const daySales = allOrdersChart.filter(o => getLocalYMD(o.timestamp) === ymd).reduce((sum, o) => sum + o.total, 0);
         chartData.push(daySales);
     }
 
@@ -937,9 +958,16 @@ window.clearOrders = () => {
     const isToday = dateToDelete === getLocalYMD();
     const labelFecha = isToday ? 'de HOY' : `del ${dateToDelete}`;
 
-    if (confirm(`¿Borrar solo las ventas ${labelFecha}? Los demás días se conservarán.`)) {
+    if (confirm(`¿Borrar TODAS las ventas ${labelFecha} (incluyendo los turnos archivados)? Los demás días se conservarán.`)) {
+        // Clear from active
         state.pastOrders = state.pastOrders.filter(o => getLocalYMD(o.timestamp) !== dateToDelete);
         localStorage.setItem('meserovip_orders', JSON.stringify(state.pastOrders));
+        
+        // Clear from archive
+        const archivedOrders = JSON.parse(localStorage.getItem('meserovip_orders_history')) || [];
+        const newArchived = archivedOrders.filter(o => getLocalYMD(o.timestamp) !== dateToDelete);
+        localStorage.setItem('meserovip_orders_history', JSON.stringify(newArchived));
+
         renderView('dashboard');
     }
 };
@@ -948,6 +976,7 @@ window.deleteOrder = (id) => {
     if (confirm('¿Seguro quieres eliminar esta orden por completo?')) {
         state.pastOrders = state.pastOrders.filter(o => o.id !== id);
         localStorage.setItem('meserovip_orders', JSON.stringify(state.pastOrders));
+        if (window.syncToCloud) window.syncToCloud();
         renderView('dashboard');
     }
 };
@@ -961,6 +990,7 @@ window.reopenOrder = (id) => {
             // Remove from past orders
             state.pastOrders.splice(orderIndex, 1);
             localStorage.setItem('meserovip_orders', JSON.stringify(state.pastOrders));
+            if (window.syncToCloud) window.syncToCloud();
 
             // Load into cart
             state.cart = [...order.items];
@@ -1203,12 +1233,23 @@ window.handleVoucherUpload = async (event) => {
 
             // Basic logic: Look for numbers specifically preceded by a dollar sign
             let detectedAmount = 0;
-            const numberRegex = /\$\s*([\d]{1,3}(?:[.,][\d]{3})*(?:[.,][\d]{1,2})?)/g;
+            // Catch $ followed by digits, commas, periods, or spaces
+            const numberRegex = /\$\s*([\d.,\s]+)/g;
             let match;
             const amounts = [];
             while ((match = numberRegex.exec(text)) !== null) {
-                let numStr = match[1].replace(/,/g, ''); // remove commas
+                let rawStr = match[1].trim();
+                
+                // Si termina exactamente en .00 o ,00 (o cualquier 2 dígitos) los removemos como decimales
+                if (/[.,]\d{2}$/.test(rawStr)) {
+                    rawStr = rawStr.slice(0, -3);
+                }
+                
+                // Removemos cualquier caracter que no sea un número (puntos, comas, espacios, etc) 
+                // para agarrar todo el monto completo sin que parseFloat se confunda.
+                let numStr = rawStr.replace(/[^\d]/g, ''); 
                 let num = parseFloat(numStr);
+                
                 if (!isNaN(num) && num > 0) {
                     amounts.push(num);
                 }
@@ -1308,7 +1349,6 @@ window.deleteVoucher = (id) => {
 // ==========================================
 // FIREBASE AUTHENTICATION LOGIC
 // ==========================================
-// 🔴 REEMPLAZA ESTO CON LA CONFIGURACIÓN REAL DE FIREBASE DESDE LA CONSOLA 🔴
 const firebaseConfig = {
     apiKey: "AIzaSyDT0Q4UK9ig1Kz7VVenPZnvPe2wQ07gWHE",
     authDomain: "mesero-pro.firebaseapp.com",
@@ -1324,6 +1364,19 @@ try {
         firebase.initializeApp(firebaseConfig);
     }
     window.firebaseAuth = firebase.auth();
+    window.db = firebase.firestore();
+
+    window.syncToCloud = () => {
+        if (window.firebaseAuth && window.firebaseAuth.currentUser && window.db) {
+            window.db.collection('userdata').doc(window.firebaseAuth.currentUser.uid).set({
+                tables: state.tables,
+                carts: state.carts,
+                pastOrders: state.pastOrders,
+                vouchers: state.vouchers,
+                lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+            }, { merge: true }).catch(console.error);
+        }
+    };
 
     const loginOverlay = document.getElementById('login-overlay');
     const appContainer = document.getElementById('app');
@@ -1400,10 +1453,42 @@ try {
                 init();
                 window.appInitialized = true;
             }
+
+            // Real-time Firestore Listener
+            if (window.db && window.syncListener === undefined) {
+                window.syncListener = window.db.collection('userdata').doc(user.uid).onSnapshot((doc) => {
+                    if (doc.exists) {
+                        const data = doc.data();
+                        
+                        // We do not want to overwrite while the user is actively typing,
+                        // but for POS sync this is very valuable.
+                        // hasPendingWrites is true if the event was triggered by our own local write (syncToCloud)
+                        if (!doc.metadata.hasPendingWrites) {
+                            state.tables = data.tables || state.tables;
+                            state.carts = data.carts || state.carts;
+                            state.pastOrders = data.pastOrders || state.pastOrders;
+                            state.vouchers = data.vouchers || state.vouchers;
+
+                            localStorage.setItem('meserovip_tables', JSON.stringify(state.tables));
+                            localStorage.setItem('meserovip_carts', JSON.stringify(state.carts));
+                            localStorage.setItem('meserovip_orders', JSON.stringify(state.pastOrders));
+                            localStorage.setItem('meserovip_vouchers', JSON.stringify(state.vouchers));
+
+                            // Refresh current view if we received remote updates
+                            renderView(state.currentView);
+                            updateCartUI();
+                        }
+                    }
+                });
+            }
         } else {
             // Logged out
             loginOverlay.style.display = 'flex';
             appContainer.style.display = 'none';
+            if (window.syncListener) {
+                window.syncListener(); // unsubscribe
+                window.syncListener = undefined;
+            }
         }
     });
 
