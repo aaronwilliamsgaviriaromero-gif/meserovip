@@ -1526,39 +1526,50 @@ try {
                         
                         // hasPendingWrites is true if the event was triggered by our own local write
                         if (!doc.metadata.hasPendingWrites) {
-                            // Sync state from cloud, allowing empty arrays
-                            if (data.tables) state.tables = data.tables;
-                            if (data.carts) state.carts = data.carts;
-                            if (data.pastOrders) state.pastOrders = data.pastOrders;
-                            if (data.vouchers) state.vouchers = data.vouchers;
-
-                            // CRITICAL FIX: Update active cart if table matches
-                            if (state.selectedTable) {
-                                state.cart = state.carts[state.selectedTable.id] || [];
-                            }
-
-                            localStorage.setItem('meserovip_tables', JSON.stringify(state.tables));
-                            localStorage.setItem('meserovip_carts', JSON.stringify(state.carts));
-                            localStorage.setItem('meserovip_orders', JSON.stringify(state.pastOrders));
-                            localStorage.setItem('meserovip_vouchers', JSON.stringify(state.vouchers));
-
-                            // Update UI
-                            renderView(state.currentView);
-                            updateCartUI();
+                            const tablesStr = JSON.stringify(data.tables);
+                            const cartsStr = JSON.stringify(data.carts);
                             
-                            const indicator = document.getElementById('sync-indicator');
-                            if (indicator) {
-                                indicator.style.background = '#13ec5b';
-                                indicator.classList.add('pulse');
-                                setTimeout(() => indicator.classList.remove('pulse'), 1000);
+                            // Only update if data actually changed to avoid "deselecting" or resetting UI
+                            if (tablesStr !== JSON.stringify(state.tables) || cartsStr !== JSON.stringify(state.carts) || 
+                                JSON.stringify(data.pastOrders) !== JSON.stringify(state.pastOrders)) {
+                                
+                                state.tables = data.tables || state.tables;
+                                state.carts = data.carts || state.carts;
+                                state.pastOrders = data.pastOrders || state.pastOrders;
+                                state.vouchers = data.vouchers || state.vouchers;
+
+                                // Preserve active table reference
+                                if (state.selectedTable) {
+                                    const newTable = state.tables.find(t => t.id === state.selectedTable.id);
+                                    if (newTable) state.selectedTable = newTable;
+                                    state.cart = state.carts[state.selectedTable.id] || [];
+                                }
+
+                                localStorage.setItem('meserovip_tables', JSON.stringify(state.tables));
+                                localStorage.setItem('meserovip_carts', JSON.stringify(state.carts));
+                                localStorage.setItem('meserovip_orders', JSON.stringify(state.pastOrders));
+                                localStorage.setItem('meserovip_vouchers', JSON.stringify(state.vouchers));
+
+                                // Only refresh UI if in a view that depends on this data
+                                // And try to be smart about not kicking the user out of POS
+                                if (state.currentView !== 'pos') {
+                                    renderView(state.currentView);
+                                } else {
+                                    // In POS, just update the table dots and the cart sidebar
+                                    updateCartUI();
+                                }
+                                
+                                const indicator = document.getElementById('sync-indicator');
+                                if (indicator) {
+                                    indicator.style.background = '#13ec5b';
+                                    indicator.classList.add('pulse');
+                                    setTimeout(() => indicator.classList.remove('pulse'), 1000);
+                                }
                             }
                         }
                     } else {
-                        // Document doesn't exist in cloud yet, let's upload our current local state
                         window.syncToCloud();
                     }
-                }, error => {
-                    console.error("Fallo de conexión o permisos en Firestore:", error);
                 });
             }
         } else {
