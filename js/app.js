@@ -1384,13 +1384,21 @@ try {
 
     window.syncToCloud = () => {
         if (window.firebaseAuth && window.firebaseAuth.currentUser && window.db) {
+            const indicator = document.getElementById('sync-indicator');
+            if (indicator) indicator.style.background = '#f20d59'; // Pulse color while syncing
+            
             return window.db.collection('userdata').doc(window.firebaseAuth.currentUser.uid).set({
                 tables: state.tables,
                 carts: state.carts,
                 pastOrders: state.pastOrders,
                 vouchers: state.vouchers,
                 lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
-            }, { merge: true }).catch(console.error);
+            }).then(() => {
+                if (indicator) indicator.style.background = '#13ec5b'; // Back to green
+            }).catch(err => {
+                console.error('Error al sincronizar:', err);
+                if (indicator) indicator.style.background = '#ffc107'; // Amber on error
+            });
         }
         return Promise.resolve();
     };
@@ -1477,25 +1485,36 @@ try {
                     if (doc.exists) {
                         const data = doc.data();
                         
-                        // We do not want to overwrite while the user is actively typing,
-                        // but for POS sync this is very valuable.
-                        // hasPendingWrites is true if the event was triggered by our own local write (syncToCloud)
+                        // hasPendingWrites is true if the event was triggered by our own local write
                         if (!doc.metadata.hasPendingWrites) {
-                            state.tables = data.tables || state.tables;
-                            state.carts = data.carts || state.carts;
-                            state.pastOrders = data.pastOrders || state.pastOrders;
-                            state.vouchers = data.vouchers || state.vouchers;
+                            // Sync state from cloud, allowing empty arrays
+                            if (data.tables) state.tables = data.tables;
+                            if (data.carts) state.carts = data.carts;
+                            if (data.pastOrders) state.pastOrders = data.pastOrders;
+                            if (data.vouchers) state.vouchers = data.vouchers;
 
                             localStorage.setItem('meserovip_tables', JSON.stringify(state.tables));
                             localStorage.setItem('meserovip_carts', JSON.stringify(state.carts));
                             localStorage.setItem('meserovip_orders', JSON.stringify(state.pastOrders));
                             localStorage.setItem('meserovip_vouchers', JSON.stringify(state.vouchers));
 
-                            // Refresh current view if we received remote updates
+                            // Update UI
                             renderView(state.currentView);
                             updateCartUI();
+                            
+                            const indicator = document.getElementById('sync-indicator');
+                            if (indicator) {
+                                indicator.style.background = '#13ec5b';
+                                indicator.classList.add('pulse');
+                                setTimeout(() => indicator.classList.remove('pulse'), 1000);
+                            }
                         }
+                    } else {
+                        // Document doesn't exist in cloud yet, let's upload our current local state
+                        window.syncToCloud();
                     }
+                }, error => {
+                    console.error("Fallo de conexión o permisos en Firestore:", error);
                 });
             }
         } else {
