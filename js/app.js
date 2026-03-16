@@ -603,13 +603,16 @@ function addToCart(product, qty = 1) {
         });
     }
 
+    // CRITICAL: Update the specific table cart in state
+    state.carts[state.selectedTable.id] = state.cart;
+
     // Mark table as occupied
     const tableIndex = state.tables.findIndex(t => t.id === state.selectedTable.id);
     if (tableIndex !== -1) {
         state.tables[tableIndex].status = 'occupied';
     }
     
-    // Save everything
+    // Save locally and to cloud
     localStorage.setItem('meserovip_carts', JSON.stringify(state.carts));
     localStorage.setItem('meserovip_tables', JSON.stringify(state.tables));
     
