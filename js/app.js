@@ -1489,10 +1489,24 @@ try {
                 btnLogin.disabled = false;
                 btnLogin.innerHTML = '<span class="material-icons-outlined" style="font-size: 1.2rem; margin-right: 8px; vertical-align: bottom;">login</span> Iniciar Sesión';
                 loginError.style.display = 'block';
-                if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
-                    loginError.textContent = 'Credenciales incorrectas.';
+                
+                const code = error.code;
+                if (code === 'auth/user-not-found') {
+                    loginError.textContent = '❌ No existe una cuenta con ese correo.';
+                } else if (code === 'auth/wrong-password') {
+                    loginError.textContent = '❌ Contraseña incorrecta. Intenta de nuevo.';
+                } else if (code === 'auth/invalid-credential') {
+                    loginError.textContent = '❌ Correo o contraseña incorrectos.';
+                } else if (code === 'auth/invalid-email') {
+                    loginError.textContent = '❌ El formato del correo no es válido.';
+                } else if (code === 'auth/too-many-requests') {
+                    loginError.textContent = '⚠️ Cuenta bloqueada por muchos intentos. Restablece tu contraseña o espera unos minutos.';
+                } else if (code === 'auth/network-request-failed') {
+                    loginError.textContent = '⚠️ Sin conexión a internet. Revisa tu red e intenta de nuevo.';
+                } else if (code === 'auth/user-disabled') {
+                    loginError.textContent = '❌ Esta cuenta está deshabilitada.';
                 } else {
-                    loginError.textContent = 'Asegúrate configurar Firebase. Error: ' + error.message;
+                    loginError.textContent = 'Error: ' + error.message + ' (Código: ' + code + ')';
                 }
             });
     });
