@@ -846,6 +846,11 @@ body.light-mode .table-obj.vip {
         overflow: hidden;
     }
 
+    /* In POS view (menu), allow body to scroll naturally */
+    body.pos-active {
+        overflow: auto;
+    }
+
     /* Hide desktop sidebar */
     .sidebar {
         display: none;
@@ -856,6 +861,12 @@ body.light-mode .table-obj.vip {
         flex-direction: column;
         height: 100dvh;
     }
+    
+    /* In POS view, the container scrolls instead of being fixed height */
+    body.pos-active .app-container {
+        height: auto;
+        min-height: 100dvh;
+    }
 
     /* Main fills remaining height minus bottom nav */
     .main-content {
@@ -864,6 +875,13 @@ body.light-mode .table-obj.vip {
         padding-top: calc(max(0.8rem, env(safe-area-inset-top)));
         padding-bottom: calc(var(--nav-height) + env(safe-area-inset-bottom, 0px) + 1.5rem);
         overflow-y: auto;
+    }
+    
+    /* In POS view, the main content expands naturally instead of scrolling internally */
+    body.pos-active .main-content {
+        flex: none;
+        overflow-y: visible;
+        padding-bottom: 1rem;
     }
 
     /* Compact top header */
@@ -954,7 +972,7 @@ body.light-mode .table-obj.vip {
         border-radius: 8px;
     }
 
-    /* Order sidebar becomes a large bottom drawer */
+    /* Order sidebar becomes a large bottom drawer (non-POS views) */
     .order-sidebar {
         position: fixed;
         bottom: calc(var(--nav-height) + env(safe-area-inset-bottom, 0px));
@@ -965,7 +983,7 @@ body.light-mode .table-obj.vip {
         border-top: 1px solid var(--border-glass);
         border-radius: 24px 24px 0 0;
         padding: 1.5rem 1rem;
-        max-height: 85dvh;  /* Ocupa casi toda la pantalla */
+        max-height: 85dvh;
         z-index: 150;
         display: flex !important;
         flex-direction: column;
@@ -980,7 +998,7 @@ body.light-mode .table-obj.vip {
         transform: translateY(0);
     }
 
-    /* Drag handle on top of order drawer */
+    /* Drag handle shown only in float mode */
     .order-sidebar::before {
         content: '';
         display: block;
@@ -991,12 +1009,38 @@ body.light-mode .table-obj.vip {
         margin: 0 auto 1.2rem;
     }
 
+    /* In POS view, sidebar is inline (part of scroll flow) */
+    body.pos-active .order-sidebar {
+        position: static !important;
+        transform: none !important;
+        border-radius: 20px;
+        border: 1px solid var(--border-glass);
+        margin-top: 1.5rem;
+        margin-bottom: calc(var(--nav-height) + env(safe-area-inset-bottom, 0px) + 1rem);
+        max-height: none !important;
+        padding: 1.2rem;
+        background: var(--bg-card);
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+    }
+
+    /* Hide the drag handle in inline mode */
+    body.pos-active .order-sidebar::before {
+        display: none;
+    }
+
     .order-items {
-        max-height: 60dvh; /* Más espacio para ver la lista de productos */
+        max-height: 60dvh;
+    }
+    
+    /* In POS view inline, let items expand fully */
+    body.pos-active .order-items {
+        max-height: none;
+        overflow-y: visible;
     }
 
     .order-summary-row.total {
-        font-size: 1.8rem; /* Total mucho más grande */
+        font-size: 1.8rem;
         margin: 1.2rem 0;
     }
 

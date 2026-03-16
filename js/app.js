@@ -293,7 +293,27 @@ function updateClock() {
 function renderView(view) {
     state.currentView = view;
     const sidebar = document.getElementById('order-sidebar');
-    if (sidebar) sidebar.style.display = (view === 'pos') ? 'flex' : 'none';
+    
+    // Toggle POS-active class for mobile scroll layout
+    if (isMobile()) {
+        if (view === 'pos') {
+            document.body.classList.add('pos-active');
+            // In POS mode on mobile, sidebar is always inline and visible
+            if (sidebar) {
+                sidebar.style.display = 'flex';
+                sidebar.classList.add('open'); // ensure visible
+            }
+        } else {
+            document.body.classList.remove('pos-active');
+            if (sidebar) {
+                sidebar.style.display = 'none';
+                sidebar.classList.remove('open');
+            }
+        }
+    } else {
+        document.body.classList.remove('pos-active');
+        if (sidebar) sidebar.style.display = (view === 'pos') ? 'flex' : 'none';
+    }
 
     // Update Background Image dynamically
     const bgContainer = document.getElementById('bg-image-container');
