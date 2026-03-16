@@ -244,6 +244,19 @@ async function finishShift() {
     localStorage.setItem('meserovip_orders', JSON.stringify([]));
     localStorage.setItem('meserovip_vouchers', JSON.stringify([]));
     
+    // Clear all tables and carts
+    state.tables.forEach(t => t.status = 'available');
+    state.carts = {};
+    state.cart = [];
+    state.selectedTable = null;
+    localStorage.setItem('meserovip_tables', JSON.stringify(state.tables));
+    localStorage.setItem('meserovip_carts', JSON.stringify(state.carts));
+    
+    // Reset table active UI text if it's there
+    const activeTableEl = document.getElementById('active-table-number');
+    if (activeTableEl) activeTableEl.textContent = `Mesa --`;
+    updateCartUI();
+    
     // Ensure it syncs to the cloud before disconnecting
     if (window.syncToCloud) {
         await window.syncToCloud();
