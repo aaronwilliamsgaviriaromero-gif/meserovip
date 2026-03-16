@@ -1524,48 +1524,56 @@ try {
                     if (doc.exists) {
                         const data = doc.data();
                         
-                        // hasPendingWrites is true if the event was triggered by our own local write
-                        if (!doc.metadata.hasPendingWrites) {
-                            const tablesStr = JSON.stringify(data.tables);
-                            const cartsStr = JSON.stringify(data.carts);
-                            
-                            // Only update if data actually changed to avoid "deselecting" or resetting UI
-                            if (tablesStr !== JSON.stringify(state.tables) || cartsStr !== JSON.stringify(state.carts) || 
-                                JSON.stringify(data.pastOrders) !== JSON.stringify(state.pastOrders)) {
-                                
-                                state.tables = data.tables || state.tables;
-                                state.carts = data.carts || state.carts;
-                                state.pastOrders = data.pastOrders || state.pastOrders;
-                                state.vouchers = data.vouchers || state.vouchers;
+                        // Skip events caused by our OWN writes (both pending and server-confirmed)
+                        // This prevents the grid from being rebuilt while the user is tapping products
+                        if (doc.metadata.hasPendingWrites) return;
+                        
+                        const newTablesStr = JSON.stringify(data.tables);
+                        const newCartsStr = JSON.stringify(data.carts);
+                        const oldTablesStr = JSON.stringify(state.tables);
+                        const oldCartsStr = JSON.stringify(state.carts);
+                        
+                        // Only update if data actually changed (another device sent something new)
+                        const dataChanged = newTablesStr !== oldTablesStr || 
+                                           newCartsStr !== oldCartsStr || 
+                                           JSON.stringify(data.pastOrders) !== JSON.stringify(state.pastOrders);
+                        
+                        if (!dataChanged) return; // Nothing new, skip all UI updates
 
-                                // Preserve active table reference
-                                if (state.selectedTable) {
-                                    const newTable = state.tables.find(t => t.id === state.selectedTable.id);
-                                    if (newTable) state.selectedTable = newTable;
-                                    state.cart = state.carts[state.selectedTable.id] || [];
-                                }
+                        state.tables = data.tables || state.tables;
+                        state.carts = data.carts || state.carts;
+                        state.pastOrders = data.pastOrders || state.pastOrders;
+                        state.vouchers = data.vouchers || state.vouchers;
 
-                                localStorage.setItem('meserovip_tables', JSON.stringify(state.tables));
-                                localStorage.setItem('meserovip_carts', JSON.stringify(state.carts));
-                                localStorage.setItem('meserovip_orders', JSON.stringify(state.pastOrders));
-                                localStorage.setItem('meserovip_vouchers', JSON.stringify(state.vouchers));
+                        // Preserve active table reference and sync active cart
+                        if (state.selectedTable) {
+                            const newTable = state.tables.find(t => t.id === state.selectedTable.id);
+                            if (newTable) state.selectedTable = newTable;
+                            state.cart = state.carts[state.selectedTable.id] || [];
+                        }
 
-                                // Only refresh UI if in a view that depends on this data
-                                // And try to be smart about not kicking the user out of POS
-                                if (state.currentView !== 'pos') {
-                                    renderView(state.currentView);
-                                } else {
-                                    // In POS, just update the table dots and the cart sidebar
-                                    updateCartUI();
-                                }
-                                
-                                const indicator = document.getElementById('sync-indicator');
-                                if (indicator) {
-                                    indicator.style.background = '#13ec5b';
-                                    indicator.classList.add('pulse');
-                                    setTimeout(() => indicator.classList.remove('pulse'), 1000);
-                                }
-                            }
+                        localStorage.setItem('meserovip_tables', JSON.stringify(state.tables));
+                        localStorage.setItem('meserovip_carts', JSON.stringify(state.carts));
+                        localStorage.setItem('meserovip_orders', JSON.stringify(state.pastOrders));
+                        localStorage.setItem('meserovip_vouchers', JSON.stringify(state.vouchers));
+
+                        // NEVER rebuild the POS product grid (renderView('pos')) from a sync event.
+                        // This was causing the "tap deselects" bug because the grid was being
+                        // completely rebuilt milliseconds after the user tapped a product.
+                        if (state.currentView === 'pos') {
+                            // Just silently update cart totals and badge
+                            updateCartUI();
+                            updateCartTotalsOnly();
+                        } else {
+                            // For other views (tables, dashboard, etc.) a full refresh is safe
+                            renderView(state.currentView);
+                        }
+                        
+                        const indicator = document.getElementById('sync-indicator');
+                        if (indicator) {
+                            indicator.style.background = '#13ec5b';
+                            indicator.classList.add('pulse');
+                            setTimeout(() => indicator.classList.remove('pulse'), 1000);
                         }
                     } else {
                         window.syncToCloud();
