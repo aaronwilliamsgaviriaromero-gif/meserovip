@@ -1009,25 +1009,8 @@ body.light-mode .table-obj.vip {
         margin: 0 auto 1.2rem;
     }
 
-    /* In POS view, sidebar is inline (part of scroll flow) */
-    body.pos-active .order-sidebar {
-        position: static !important;
-        transform: none !important;
-        border-radius: 20px;
-        border: 1px solid var(--border-glass);
-        margin-top: 1.5rem;
-        margin-bottom: calc(var(--nav-height) + env(safe-area-inset-bottom, 0px) + 1rem);
-        max-height: none !important;
-        padding: 1.2rem;
-        background: var(--bg-card);
-        backdrop-filter: none;
-        -webkit-backdrop-filter: none;
-    }
-
-    /* Hide the drag handle in inline mode */
-    body.pos-active .order-sidebar::before {
-        display: none;
-    }
+    /* Order sidebar stays as floating sheet in POS view too */
+    /* but in POS mode the product grid scrolls as a normal page */
 
     .order-items {
         max-height: 60dvh;

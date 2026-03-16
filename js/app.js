@@ -298,10 +298,10 @@ function renderView(view) {
     if (isMobile()) {
         if (view === 'pos') {
             document.body.classList.add('pos-active');
-            // In POS mode on mobile, sidebar is always inline and visible
+            // In POS mode on mobile, sidebar stays as floating bottom sheet
             if (sidebar) {
                 sidebar.style.display = 'flex';
-                sidebar.classList.add('open'); // ensure visible
+                // Do NOT auto-open it — user opens via cart button
             }
         } else {
             document.body.classList.remove('pos-active');
